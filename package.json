@@ -1,0 +1,31 @@
+{
+  "name": "pursbot",
+  "version": "0.1.0",
+  "description": "PureScript telegram bot",
+  "main": "dist/index.js",
+  "scripts": {
+    "clean": "rm -rf dist output",
+    "reset": "rm -rf output dist .psc-package .cache .pulp-cache .psci_modules",
+    "test": "run-s compile:test test:run",
+    "test:run": "node -e 'require(\"./output/Test.Main\").main()'",
+    "compile": "psc-package build",
+    "compile:test": "psc-package build -- 'test/**/*.purs'",
+    "repl": "psc-package repl",
+    "start": "run-s compile run",
+    "run": "node -e 'require(\"./output/Main\").main()'"
+  },
+  "keywords": [
+    "PureScript",
+    "Telegram",
+    "Bot"
+  ],
+  "author": "Vasiliy Yorkin <vasiliy.yorkin@gmail.com>",
+  "license": "WTFPL",
+  "dependencies": {
+    "node-fetch": "^2.2.0",
+    "node-telegram-bot-api": "^0.30.0"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.3"
+  }
+}

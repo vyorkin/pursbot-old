@@ -1,0 +1,20 @@
+{
+  "name": "pursbot",
+  "set": "20180810",
+  "source": "https://github.com/vyorkin-forks/spacchetti.git",
+  "depends": [
+    "node-fs-aff",
+    "strings",
+    "console",
+    "functions",
+    "simple-json",
+    "globals",
+    "debug",
+    "milkis",
+    "choco-pie",
+    "psci-support",
+    "prelude",
+    "node-telegram-bot-api",
+    "unicode-prelude"
+  ]
+}
