@@ -8,23 +8,19 @@ import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
-import Debug.Trace (traceM)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console as Console
 import FRP.Event (Event)
 import FRP.Event as Event
-import Global.Unsafe (unsafeEncodeURIComponent)
-import Milkis (URL(..), defaultFetchOptions, fetch)
-import Milkis as Milkis
-import Milkis.Impl.Node (nodeFetch)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readTextFile)
 import Prelude.Unicode ((∘), (⊙), (◇))
 import Simple.JSON (readJSON)
 import TelegramBot (Bot)
 import TelegramBot as Bot
+import PursBot.Pursuit as Pursuit
 
 type Config =
   { token ∷ String
@@ -60,10 +56,8 @@ main ∷ Effect Unit
 main = launchAff_ do
   config ← readJSON ⊙ readTextFile UTF8 "./config.json"
   case config of
-    Right cfg → do
-      liftEffect $ runChocoPie main_ (drivers cfg)
-    Left err → do
-      liftEffect $ Console.log $ "Malformed config: " ◇ show err
+    Right cfg → liftEffect $ runChocoPie main_ (drivers cfg)
+    Left err  → liftEffect $ Console.log $ "Malformed config: " ◇ show err
   where
     main_ sources =
       { bot: sources.search
@@ -93,19 +87,11 @@ getMessages connection = do
 search ∷ Event Query → Effect (Event Output)
 search queries = do
   { event, push } ← Event.create
-  void $ Event.subscribe queries \query → do
-    traceM query
+  void $ Event.subscribe queries \(Query query) → do
     launchAff_ do
-      response ← fetch nodeFetch (mkUrl query) opts
-      result ← Milkis.text response
-      traceM $ "RESPONSE: \n" ◇ result ◇ "\n\n"
-      liftEffect ∘ push ∘ parse $ result
+      response ← Pursuit.search query
+      liftEffect ∘ push ∘ parse $ response
   pure event
-  where
-    opts =
-      { headers: Milkis.makeHeaders { "accept": "application/json" }
-      , method: Milkis.getMethod
-      }
 
 parse ∷ String → Output
 parse result = Output
@@ -122,9 +108,3 @@ renderSearchResult r =
   "in " ◇ r.info.module ◇ "\n" ◇
   "of " ◇ r.package ◇ " v" ◇ r.version ◇ "\n" ◇
   r.url ◇ "\n"
-
-mkUrl ∷ Query → URL
-mkUrl (Query s) = URL $ baseUrl ◇ unsafeEncodeURIComponent s
-
-baseUrl ∷ String
-baseUrl = "https://pursuit.purescript.org/search?q="
