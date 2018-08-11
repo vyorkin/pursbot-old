@@ -2,7 +2,7 @@ module PursBot.Http (get) where
 
 import Prelude
 import Effect.Aff (Aff)
-import Milkis (URL, getMethod, makeHeaders)
+import Milkis (Response, URL, getMethod, makeHeaders)
 import Milkis as Milkis
 import Milkis.Impl.Node (nodeFetch)
 

@@ -11,7 +11,7 @@ import Prelude
 
 import Data.Array as Array
 import Data.Bifunctor (rmap)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Effect.Aff (Aff)
 import Foreign (MultipleErrors, renderForeignError)
 import Global.Unsafe (unsafeEncodeURIComponent)
@@ -28,33 +28,33 @@ newtype Params = Params
   }
 
 type Info =
-  { module ∷ String
-  , title ∷ String
-  , type ∷ String
-  , typeOrValue ∷ String
-  , typeText ∷ String
+  { module ∷ Maybe String
+  , title ∷ Maybe String
+  , type ∷ Maybe String
+  , typeOrValue ∷ Maybe String
+  , typeText ∷ Maybe String
   }
 
 type Result =
   { markup ∷ String
-  , package ∷ String
+  , package ∷ Maybe String
   , text ∷ String
-  , url ∷ String
-  , version ∷ String
+  , url ∷ Maybe String
+  , version ∷ Maybe String
   , info ∷ Info
   }
 
 mkParams ∷ String → Params
-mkParams query = Params { query, page: 1, limit: 3}
+mkParams query = Params { query, page: 1, limit: 3 }
 
 search ∷ Params → Aff (E (Array String))
 search params@(Params { limit }) = do
-  response ← Http.get (mkUrl ∘ mkQuery $ params)
+  response ← Http.get $ mkUrl params
   let results = Array.reverse ⊙ readJSON response
   pure $ rmap (map renderResult ∘ Array.take limit) results
 
-mkUrl ∷ String → URL
-mkUrl = URL ∘ append baseUrl
+mkUrl ∷ Params → URL
+mkUrl = URL ∘ append baseUrl ∘ mkQuery
 
 mkQuery ∷ Params → String
 mkQuery (Params { query, page }) =
@@ -68,10 +68,10 @@ baseUrl = "https://pursuit.purescript.org/search"
 
 renderResult ∷ Result → String
 renderResult r =
-  r.info.title ◇ " :: " ◇ r.info.typeText ◇ "\n" ◇
-  "in " ◇ r.info.module ◇ "\n" ◇
-  "of " ◇ r.package ◇ " v" ◇ r.version ◇ "\n" ◇
-  r.url ◇ "\n"
+  fromMaybe "" r.info.title ◇ maybe "" (append " :: ") r.info.typeText ◇ "\n" ◇
+  maybe "" (append "in ") r.info.module ◇ "\n" ◇
+  maybe "" (append "of ") r.package ◇ maybe "" (append " v") r.version ◇ "\n" ◇
+  fromMaybe "" r.url ◇ "\n"
 
 renderErrors ∷ Params → MultipleErrors → String
 renderErrors (Params params) errors =
