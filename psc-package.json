@@ -11,6 +11,7 @@
     "globals",
     "debug",
     "milkis",
+    "uri",
     "choco-pie",
     "psci-support",
     "prelude",

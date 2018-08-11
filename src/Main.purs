@@ -14,35 +14,13 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import FRP.Event (Event)
 import FRP.Event as Event
-import Prelude.Unicode ((∘), (⊙), (◇))
+import Prelude.Unicode ((∘), (◇))
 import PursBot.Config (Config)
 import PursBot.Config as Config
 import PursBot.Pursuit as Pursuit
-import Simple.JSON (readJSON)
+import PursBot.Pursuit.Search as Search
 import TelegramBot (Bot)
 import TelegramBot as Bot
-
-type SearchInfo =
-  { module ∷ String
-  , title ∷ String
-  , type ∷ String
-  , typeOrValue ∷ String
-  , typeText ∷ String
-  }
-
-type SearchResult =
-  { markup ∷ String
-  , package ∷ String
-  , text ∷ String
-  , url ∷ String
-  , version ∷ String
-  , info ∷ SearchInfo
-  }
-
-type SearchResponse = Array SearchResult
-
-newtype Query = Query String
-derive instance queryNewtype ∷ Newtype Query _
 
 newtype Output = Output String
 derive instance outputNewtype ∷ Newtype Output _
@@ -50,9 +28,10 @@ derive instance outputNewtype ∷ Newtype Output _
 main ∷ Effect Unit
 main = launchAff_ do
   config ← Config.load
-  case config of
-    Right cfg → liftEffect $ runChocoPie main_ (drivers cfg)
-    Left err  → liftEffect $ Console.log $ "Malformed config: " ◇ show err
+  liftEffect $
+    case config of
+      Right cfg → runChocoPie main_ (drivers cfg)
+      Left err → Console.log $ "Malformed config: " ◇ show err
   where
     main_ sources =
       { bot: sources.search
@@ -64,42 +43,30 @@ main = launchAff_ do
       , search
       }
 
-bot ∷ Config → Event Output → Effect (Event Query)
+bot ∷ Config → Event Output → Effect (Event Search.Params)
 bot config outputs = do
-  connection ← Bot.connect config.token
+  conn ← Bot.connect config.token
   void $ Event.subscribe outputs \(Output output) →
-    Bot.sendMessage connection config.chatId output
-  getMessages connection
+    Bot.sendMessage conn config.chatId output
+  getMessages conn
 
-getMessages ∷ Bot → Effect (Event Query)
-getMessages connection = do
+getMessages ∷ Bot → Effect (Event Search.Params)
+getMessages conn = do
   { event, push } ← Event.create
-  Bot.onMessage connection \fM → case runExcept fM of
-    Right m | (Just text) ← m.text → push $ Query text
+  Bot.onMessage conn \msg → case runExcept msg of
+    Right m | (Just query) ← m.text → push $ Search.mkParams query
     _ → Console.log "Can't do shit cap'n"
   pure event
 
-search ∷ Event Query → Effect (Event Output)
+search ∷ Event Search.Params → Effect (Event Output)
 search queries = do
   { event, push } ← Event.create
-  void $ Event.subscribe queries \(Query query) → do
+  void $ Event.subscribe queries \params → do
     launchAff_ do
-      response ← Pursuit.search query
-      liftEffect ∘ push ∘ parse $ response
+      response ← Pursuit.search params
+      let
+        output = case response of
+          Right results → Array.intercalate "\n" results
+          Left err → Search.renderErrors params err
+      liftEffect ∘ push $ Output output
   pure event
-
-parse ∷ String → Output
-parse result = Output
-  case readJSON result of
-    Right (response ∷ SearchResponse) →
-      Array.intercalate "\n" $
-        renderSearchResult ⊙ Array.take 5 (Array.reverse response)
-    Left err →
-      "Couldn't parse non-result JSON: " ◇ show result
-
-renderSearchResult ∷ SearchResult → String
-renderSearchResult r =
-  r.info.title ◇ " :: " ◇ r.info.typeText ◇ "\n" ◇
-  "in " ◇ r.info.module ◇ "\n" ◇
-  "of " ◇ r.package ◇ " v" ◇ r.version ◇ "\n" ◇
-  r.url ◇ "\n"
