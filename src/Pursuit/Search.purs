@@ -17,7 +17,7 @@ import Foreign (MultipleErrors, renderForeignError)
 import Global.Unsafe (unsafeEncodeURIComponent)
 import Milkis (URL(..))
 import Prelude.Unicode ((∘), (⊙), (◇))
-import PursBot.Format (inlineCode, inlineUrl_)
+import PursBot.Format (bold, inlineCode, inlineUrl_)
 import PursBot.Http as Http
 import PursBot.URI.Query as Query
 import Simple.JSON (E, readJSON)
@@ -70,10 +70,10 @@ baseUrl = "https://pursuit.purescript.org/search"
 renderResult ∷ Result → String
 renderResult r =
   maybe "" inlineCode r.info.title ◇
-  maybe "" (append " :: " ∘ inlineCode) r.info.typeText ◇ "\n" ◇
+  maybe "" (inlineCode ∘ append " :: ") r.info.typeText ◇ "\n" ◇
   maybe "" (append "in " ∘ inlineCode) r.info.module ◇ "\n" ◇
   maybe "" (append "of " ∘ inlineCode) r.package ◇
-  maybe "" (append " v") r.version ◇ "\n" ◇
+  maybe "" (append " v " ∘ bold) r.version ◇ "\n" ◇
   maybe "" (inlineUrl_ ∘ URL) r.url ◇ "\n"
 
 renderErrors ∷ Params → MultipleErrors → String
