@@ -14,18 +14,13 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import FRP.Event (Event)
 import FRP.Event as Event
-import Node.Encoding (Encoding(..))
-import Node.FS.Aff (readTextFile)
 import Prelude.Unicode ((∘), (⊙), (◇))
+import PursBot.Config (Config)
+import PursBot.Config as Config
+import PursBot.Pursuit as Pursuit
 import Simple.JSON (readJSON)
 import TelegramBot (Bot)
 import TelegramBot as Bot
-import PursBot.Pursuit as Pursuit
-
-type Config =
-  { token ∷ String
-  , chatId ∷ Int
-  }
 
 type SearchInfo =
   { module ∷ String
@@ -54,7 +49,7 @@ derive instance outputNewtype ∷ Newtype Output _
 
 main ∷ Effect Unit
 main = launchAff_ do
-  config ← readJSON ⊙ readTextFile UTF8 "./config.json"
+  config ← Config.load
   case config of
     Right cfg → liftEffect $ runChocoPie main_ (drivers cfg)
     Left err  → liftEffect $ Console.log $ "Malformed config: " ◇ show err
