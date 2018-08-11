@@ -14,6 +14,7 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import FRP.Event (Event)
 import FRP.Event as Event
+import Foreign (unsafeToForeign)
 import Prelude.Unicode ((∘), (◇))
 import PursBot.Config (Config)
 import PursBot.Config as Config
@@ -47,8 +48,14 @@ bot ∷ Config → Event Output → Effect (Event Search.Params)
 bot config outputs = do
   conn ← Bot.connect config.token
   void $ Event.subscribe outputs \(Output output) →
-    Bot.sendMessage conn config.chatId output
+    Bot.sendMessage conn config.chatId output (unsafeToForeign options)
   getMessages conn
+  where
+    options =
+      { parse_mode: "Markdown"
+      , disable_web_page_preview: true
+      , disable_notification: true
+      }
 
 getMessages ∷ Bot → Effect (Event Search.Params)
 getMessages conn = do
