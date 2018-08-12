@@ -7,7 +7,7 @@ PureScript telegram bot.
 Searching:
 
 ```
-> query (a -> b) -> f a -> f b
+/search (a -> b) -> f a -> f b
 
 liftA1 :: forall f a b. Applicative f => (a -> b) -> f a -> f b
 in Control.Applicative
@@ -38,13 +38,12 @@ Evaluation: TODO
 
 ## Development
 
-* Get your own token by using the `@BotFather` as described [here](https://core.telegram.org/bots#botfather).
-* You can find out the `chatId` by initiating a conversation with your bot and then going to `https://api.telegram.org/bot<your-bot-token>/getUpdates`
-
-Then create a config file and change it accordingly:
+1. Get your own token by using the `@BotFather` as described [here](https://core.telegram.org/bots#botfather).
+2. Then create a config file and change it accordingly:
 ```
 cp config.example.json config.json
 ```
+3. Initiate a conversation with your bot
 
 ## Roadmap
 

@@ -11,7 +11,6 @@ import Simple.JSON (E, readJSON)
 
 type Config =
   { token ∷ String
-  , chatId ∷ Int
   }
 
 load ∷ Aff (E Config)

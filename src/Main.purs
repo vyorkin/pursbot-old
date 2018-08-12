@@ -5,9 +5,10 @@ import Prelude
 import ChocoPie (runChocoPie)
 import Control.Monad.Except (runExcept)
 import Data.Array as Array
-import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
+import Data.Either (Either(..), fromRight)
+import Data.Maybe (Maybe(..), fromJust)
+import Data.String.Regex (regex)
+import Data.String.Regex.Flags (ignoreCase) as Regex
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Effect.Class (liftEffect)
@@ -15,40 +16,63 @@ import Effect.Console as Console
 import FRP.Event (Event)
 import FRP.Event as Event
 import Foreign (unsafeToForeign)
+import Partial.Unsafe (unsafePartial)
 import Prelude.Unicode ((∘), (◇))
 import PursBot.Config (Config)
 import PursBot.Config as Config
 import PursBot.Pursuit as Pursuit
 import PursBot.Pursuit.Search as Search
-import TelegramBot (Bot)
+import TelegramBot (Bot, Chat)
 import TelegramBot as Bot
 
-newtype Output = Output String
-derive instance outputNewtype ∷ Newtype Output _
+type Query =
+  { chat ∷ Chat
+  , params ∷ Search.Params
+  }
+
+type Output =
+  { chat ∷ Chat
+  , text ∷ String
+  }
 
 main ∷ Effect Unit
 main = launchAff_ do
   config ← Config.load
   liftEffect $
     case config of
-      Right cfg → runChocoPie main_ (drivers cfg)
+      Right cfg → runChocoPie main' (mkDrivers cfg)
       Left err → Console.log $ "Malformed config: " ◇ show err
-  where
-    main_ sources =
-      { bot: sources.search
-      , search: sources.bot
-      }
 
-    drivers config =
-      { bot: bot config
-      , search
-      }
+type Main
+  = { bot ∷ Event Query
+    , search ∷ Event Output
+    }
+  → { bot ∷ Event Output
+    , search ∷ Event Query
+    }
 
-bot ∷ Config → Event Output → Effect (Event Search.Params)
+type Drivers =
+  { bot ∷ Event Output → Effect (Event Query)
+  , search ∷ Event Query → Effect (Event Output)
+  }
+
+main' ∷ Main
+main' sources =
+  { bot: sources.search
+  , search: sources.bot
+  }
+
+mkDrivers ∷ Config → Drivers
+mkDrivers config =
+  { bot: bot config
+  , search
+  }
+
+bot ∷ Config → Event Output → Effect (Event Query)
 bot config outputs = do
   conn ← Bot.connect config.token
-  void $ Event.subscribe outputs \(Output output) →
-    Bot.sendMessage conn config.chatId output (unsafeToForeign options)
+  void $ Event.subscribe outputs \{ chat, text } → do
+    Bot.sendMessage conn (show chat.id) text (unsafeToForeign options)
   getMessages conn
   where
     options =
@@ -57,23 +81,34 @@ bot config outputs = do
       , disable_notification: true
       }
 
-getMessages ∷ Bot → Effect (Event Search.Params)
+getMessages ∷ Bot → Effect (Event Query)
 getMessages conn = do
   { event, push } ← Event.create
-  Bot.onMessage conn \msg → case runExcept msg of
-    Right m | (Just query) ← m.text → push $ Search.mkParams query
-    _ → Console.log "Can't do shit cap'n"
+  Bot.onText conn searchPattern (handler push)
   pure event
+  where
+    handler push m m'
+      | Right msg ← runExcept m
+      , Right m'' ← runExcept m'
+      , Just matches ← m''
+        = push $ mkQuery msg.chat (unsafePartial $ fromJust $ Array.last matches)
+      | otherwise
+        = pure unit
+    searchPattern = unsafePartial $
+      fromRight $ regex "/search (.+)" Regex.ignoreCase
 
-search ∷ Event Search.Params → Effect (Event Output)
+mkQuery ∷ Chat → String → Query
+mkQuery chat text = { chat, params: Search.mkParams text }
+
+search ∷ Event Query → Effect (Event Output)
 search queries = do
   { event, push } ← Event.create
-  void $ Event.subscribe queries \params → do
+  void $ Event.subscribe queries \{ chat, params } → do
     launchAff_ do
       response ← Pursuit.search params
       let
-        output = case response of
+        text = case response of
           Right results → Array.intercalate "\n" results
           Left err → Search.renderErrors params err
-      liftEffect ∘ push $ Output output
+      liftEffect ∘ push $ { chat, text }
   pure event
