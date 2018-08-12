@@ -73,7 +73,7 @@ renderResult r =
   maybe "" (inlineCode ∘ append " :: ") r.info.typeText ◇ "\n" ◇
   maybe "" (append "in " ∘ inlineCode) r.info.module ◇ "\n" ◇
   maybe "" (append "of " ∘ inlineCode) r.package ◇
-  maybe "" (append " v " ∘ bold) r.version ◇ "\n" ◇
+  maybe "" (append " v" ∘ bold) r.version ◇ "\n" ◇
   maybe "" (inlineUrl_ ∘ URL) r.url ◇ "\n"
 
 renderErrors ∷ Params → MultipleErrors → String
